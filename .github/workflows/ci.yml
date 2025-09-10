@@ -1,0 +1,60 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.x
+
+      - name: Install dependencies
+        run: |
+          npm i -g pnpm
+          pnpm i
+
+      - name: Lint
+        run: |
+          pnpm run lint
+          pnpm run check
+
+      - name: Build
+        run: |
+          pnpm run build
+
+      - name: Package zip
+        working-directory: .output
+        run: 
+          zip -r ../fcitx5-chrome.zip fcitx5-chrome
+
+      - name: Upload artifact
+        if: ${{ github.ref != 'refs/heads/master' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-chrome
+          path: |
+            fcitx5-chrome.zip
+
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+
+      - name: Release
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: 'marvinpinto/action-automatic-releases@latest'
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: latest
+          prerelease: true
+          title: "Nightly Build"
+          files: |
+            fcitx5-chrome.zip
