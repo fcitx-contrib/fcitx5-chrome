@@ -1,4 +1,7 @@
 import { defineConfig } from 'wxt'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
+
+const wasmPath = 'node_modules/fcitx5-js/dist/'
 
 export default defineConfig({
   manifest: {
@@ -14,6 +17,19 @@ export default defineConfig({
       language: ['en-US'],
       layouts: ['us'],
     }],
+    content_security_policy: {
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+    }
   },
   outDirTemplate: 'fcitx5-chrome',
+  vite: () => ({
+    plugins: [
+      viteStaticCopy({
+        targets: ['Fcitx5.data', 'Fcitx5.wasm', 'libFcitx5Config.so', 'libFcitx5Core.so', 'libFcitx5Utils.so'].map(file => ({
+          src: wasmPath + file,
+          dest: '',
+        })),
+      })
+    ]
+  })
 })

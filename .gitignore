@@ -5,3 +5,4 @@ web-ext.config.ts
 .wxt
 .output
 *.zip
+*.tgz

@@ -1,9 +1,31 @@
+import { fcitxReady } from 'fcitx5-js'
+
 export default defineBackground(() => {
   if (!browser.input) {
     return
   }
   let contextID = 0
   const { ime } = browser.input
+
+  fcitxReady.then(() => {
+    globalThis.fcitx.commit = (text: string) => {
+      ime.commitText({ contextID, text })
+    }
+    const { keyEvent } = globalThis.fcitx.enable()!
+    ime.onKeyEvent.addListener((engineID, keyData, requestId) => {
+      ime.keyEventHandled(requestId, keyEvent({
+        ...keyData,
+        getModifierState: (modifier: string) => {
+          if (modifier === 'CapsLock') {
+            return !!keyData.capsLock
+          }
+          return false
+        },
+        preventDefault: () => {},
+      }))
+      return true
+    })
+  })
 
   ime.onFocus.addListener((context) => {
     contextID = context.contextID
@@ -13,6 +35,7 @@ export default defineBackground(() => {
     contextID = -1
   })
 
+  /*
   ime.onKeyEvent.addListener((engineID, keyData, requestId) => {
     if (keyData.type !== 'keydown') {
       return false
@@ -49,6 +72,7 @@ export default defineBackground(() => {
     ime.keyEventHandled(requestId, false)
     return false
   })
+    */
 
   ime.onCandidateClicked.addListener((engineID, candidateID) => {
     ime.commitText({ contextID, text: candidateID.toString() })
