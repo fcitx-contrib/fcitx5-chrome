@@ -4,15 +4,66 @@ export default defineBackground(() => {
   if (!browser.input) {
     return
   }
+  let engineID = ''
   let contextID = 0
   const { ime } = browser.input
 
   fcitxReady.then(() => {
+    // @ts-expect-error ChromeOS specific API for C++.
+    globalThis.fcitx.chrome = {
+      setCandidates(arg: string) {
+        if (!engineID || contextID < 0) {
+          return
+        }
+        const { candidates, highlighted } = JSON.parse(arg) as {
+          candidates: {
+            text: string
+            label: string
+            comment: string
+          }[]
+          highlighted: number
+        }
+        ime.setCandidates({
+          contextID,
+          candidates: candidates.map((candidate, i) => ({
+            id: i,
+            candidate: candidate.text,
+            label: candidate.label,
+            annotation: candidate.comment,
+          })),
+        })
+        if (highlighted >= 0) {
+          ime.setCursorPosition({
+            contextID,
+            candidateID: highlighted,
+          })
+        }
+        if (candidates.length > 0) {
+          ime.setCandidateWindowProperties({
+            engineID,
+            properties: {
+              visible: true,
+              cursorVisible: true,
+              vertical: true,
+              pageSize: candidates.length,
+            },
+          })
+        }
+        else {
+          ime.setCandidateWindowProperties({
+            engineID,
+            properties: { visible: false },
+          })
+        }
+      },
+    }
+
     globalThis.fcitx.commit = (text: string) => {
       ime.commitText({ contextID, text })
     }
+
     const { keyEvent } = globalThis.fcitx.enable()!
-    ime.onKeyEvent.addListener((engineID, keyData, requestId) => {
+    ime.onKeyEvent.addListener((_, keyData, requestId) => {
       ime.keyEventHandled(requestId, keyEvent({
         ...keyData,
         getModifierState: (modifier: string) => {
@@ -27,6 +78,14 @@ export default defineBackground(() => {
     })
   })
 
+  ime.onActivate.addListener((engine) => {
+    engineID = engine
+  })
+
+  ime.onDeactivated.addListener(() => {
+    engineID = ''
+  })
+
   ime.onFocus.addListener((context) => {
     contextID = context.contextID
   })
@@ -34,45 +93,6 @@ export default defineBackground(() => {
   ime.onBlur.addListener(() => {
     contextID = -1
   })
-
-  /*
-  ime.onKeyEvent.addListener((engineID, keyData, requestId) => {
-    if (keyData.type !== 'keydown') {
-      return false
-    }
-
-    if (/^[a-z]$/i.test(keyData.key)) {
-      ime.setComposition({
-        contextID,
-        text: '',
-        cursor: 0,
-      })
-
-      const candidates = [
-        { candidate: 'foo', id: 0, label: '1' },
-        { candidate: 'bar', id: 1, label: '2' },
-      ]
-      ime.setCandidates({
-        contextID,
-        candidates,
-      })
-      ime.setCandidateWindowProperties({
-        engineID,
-        properties: {
-          visible: true,
-          cursorVisible: true,
-          vertical: true,
-          pageSize: candidates.length,
-        },
-      })
-      ime.keyEventHandled(requestId, true)
-      return true
-    }
-
-    ime.keyEventHandled(requestId, false)
-    return false
-  })
-    */
 
   ime.onCandidateClicked.addListener((engineID, candidateID) => {
     ime.commitText({ contextID, text: candidateID.toString() })
