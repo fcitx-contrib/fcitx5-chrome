@@ -1,11 +1,14 @@
 import { fcitxReady } from 'fcitx5-js'
 
+const IM_PREFIX = 'im:'
+
 export default defineBackground(() => {
   if (!browser.input) {
     return
   }
   let engineID = ''
   let contextID = 0
+  let inputMethods: { name: string, displayName: string }[] = []
   const { ime } = browser.input
 
   function hideCandidateWindow() {
@@ -13,6 +16,18 @@ export default defineBackground(() => {
       engineID,
       properties: { visible: false },
     })
+  }
+
+  function setMenuItems() {
+    if (!engineID) {
+      return
+    }
+    const currentInputMethod = globalThis.fcitx.currentInputMethod()
+    ime.setMenuItems({ engineID, items: inputMethods.map(inputMethod => ({
+      id: `${IM_PREFIX}${inputMethod.name}`,
+      label: inputMethod.displayName,
+      checked: inputMethod.name === currentInputMethod,
+    })) })
   }
 
   fcitxReady.then(() => {
@@ -101,6 +116,11 @@ export default defineBackground(() => {
       ime.commitText({ contextID, text })
     }
 
+    globalThis.fcitx.setInputMethodsCallback(() => {
+      inputMethods = globalThis.fcitx.getInputMethods()
+      setMenuItems()
+    })
+
     const { keyEvent } = globalThis.fcitx.enable()!
     ime.onKeyEvent.addListener((_, keyData, requestId) => {
       const handled = keyEvent({
@@ -124,6 +144,7 @@ export default defineBackground(() => {
 
   ime.onActivate.addListener((engine) => {
     engineID = engine
+    setMenuItems()
   })
 
   ime.onDeactivated.addListener(() => {
@@ -143,5 +164,12 @@ export default defineBackground(() => {
 
   ime.onCandidateClicked.addListener((_, candidateID) => {
     globalThis.fcitx.Module.ccall('select_candidate', 'void', ['number'], [candidateID])
+  })
+
+  ime.onMenuItemActivated.addListener((_, name) => {
+    if (name.startsWith(IM_PREFIX)) {
+      const im = name.slice(IM_PREFIX.length)
+      globalThis.fcitx.setCurrentInputMethod(im)
+    }
   })
 })
