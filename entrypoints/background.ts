@@ -8,12 +8,22 @@ export default defineBackground(() => {
   let contextID = 0
   const { ime } = browser.input
 
+  function hideCandidateWindow() {
+    ime.setCandidateWindowProperties({
+      engineID,
+      properties: { visible: false },
+    })
+  }
+
   fcitxReady.then(() => {
     // @ts-expect-error ChromeOS specific API for C++.
     globalThis.fcitx.chrome = {
       setCandidates(arg: string) {
-        if (!engineID || contextID < 0) {
+        if (!engineID) {
           return
+        }
+        if (contextID < 0) { // onBlur
+          return hideCandidateWindow()
         }
         const { candidates, highlighted, preedit, caret, auxUp } = JSON.parse(arg) as {
           candidates: {
@@ -72,15 +82,22 @@ export default defineBackground(() => {
           })
         }
         else {
-          ime.setCandidateWindowProperties({
-            engineID,
-            properties: { visible: false },
-          })
+          hideCandidateWindow()
         }
       },
     }
 
+    globalThis.fcitx.setPreedit = (text: string, caret: number) => {
+      if (contextID < 0) {
+        return
+      }
+      ime.setComposition({ contextID, text, cursor: globalThis.fcitx.utf8Index2JS(text, caret) })
+    }
+
     globalThis.fcitx.commit = (text: string) => {
+      if (contextID < 0) {
+        return
+      }
       ime.commitText({ contextID, text })
     }
 
@@ -115,10 +132,13 @@ export default defineBackground(() => {
 
   ime.onFocus.addListener((context) => {
     contextID = context.contextID
+    globalThis.fcitx.Module.ccall('focus_in', 'void', ['bool'], [false])
   })
 
   ime.onBlur.addListener(() => {
+    // By then the old context is already blurred and disallow committing anything.
     contextID = -1
+    globalThis.fcitx.Module.ccall('focus_out', 'void', [], [])
   })
 
   ime.onCandidateClicked.addListener((_, candidateID) => {
