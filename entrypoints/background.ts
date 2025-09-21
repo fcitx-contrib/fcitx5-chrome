@@ -15,13 +15,21 @@ export default defineBackground(() => {
         if (!engineID || contextID < 0) {
           return
         }
-        const { candidates, highlighted } = JSON.parse(arg) as {
+        const { candidates, highlighted, preedit, caret, auxUp } = JSON.parse(arg) as {
           candidates: {
             text: string
             label: string
             comment: string
           }[]
           highlighted: number
+          preedit: string
+          caret: number
+          auxUp: string
+        }
+        const index = globalThis.fcitx.utf8Index2JS(preedit, caret)
+        let aux = preedit ? `${preedit.slice(0, index)}‸${preedit.slice(index)}` : ''
+        if (auxUp) {
+          aux = `${auxUp} ${aux}`
         }
         ime.setCandidates({
           contextID,
@@ -46,6 +54,20 @@ export default defineBackground(() => {
               cursorVisible: true,
               vertical: true,
               pageSize: candidates.length,
+              auxiliaryText: aux,
+              auxiliaryTextVisible: !!aux,
+            },
+          })
+        }
+        else if (aux) {
+          ime.setCandidateWindowProperties({
+            engineID,
+            properties: {
+              visible: true,
+              vertical: false,
+              pageSize: 1,
+              auxiliaryText: `   ${aux}`, // ChromeOS shows padding right unconditionally.
+              auxiliaryTextVisible: true,
             },
           })
         }
@@ -64,7 +86,7 @@ export default defineBackground(() => {
 
     const { keyEvent } = globalThis.fcitx.enable()!
     ime.onKeyEvent.addListener((_, keyData, requestId) => {
-      ime.keyEventHandled(requestId, keyEvent({
+      const handled = keyEvent({
         ...keyData,
         getModifierState: (modifier: string) => {
           if (modifier === 'CapsLock') {
@@ -73,7 +95,12 @@ export default defineBackground(() => {
           return false
         },
         preventDefault: () => {},
-      }))
+      })
+      if (!handled && keyData.ctrlKey && !keyData.altKey && !keyData.shiftKey && keyData.key === ' ') {
+        // Hack Ctrl+Space to avoid Unchecked runtime.lastError: [input.ime.keyEventHandled]: The engine is not active.
+        return false
+      }
+      ime.keyEventHandled(requestId, handled)
       return true
     })
   })
@@ -94,12 +121,7 @@ export default defineBackground(() => {
     contextID = -1
   })
 
-  ime.onCandidateClicked.addListener((engineID, candidateID) => {
-    ime.commitText({ contextID, text: candidateID.toString() })
-    ime.setCandidates({
-      contextID,
-      candidates: [],
-    })
-    ime.setCandidateWindowProperties({ engineID, properties: { visible: false } })
+  ime.onCandidateClicked.addListener((_, candidateID) => {
+    globalThis.fcitx.Module.ccall('select_candidate', 'void', ['number'], [candidateID])
   })
 })
