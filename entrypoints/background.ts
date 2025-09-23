@@ -1,6 +1,8 @@
+import type { FCITX } from 'fcitx5-js'
 import { fcitxReady } from 'fcitx5-js'
 
 const IM_PREFIX = 'im:'
+const SA_PREFIX = 'sa:'
 
 export default defineBackground(() => {
   if (!browser.input) {
@@ -9,6 +11,7 @@ export default defineBackground(() => {
   let engineID = ''
   let contextID = 0
   let inputMethods: { name: string, displayName: string }[] = []
+  let menuActions: ReturnType<FCITX['getMenuActions']> = []
   const { ime } = browser.input
 
   function hideCandidateWindow() {
@@ -23,11 +26,23 @@ export default defineBackground(() => {
       return
     }
     const currentInputMethod = globalThis.fcitx.currentInputMethod()
-    ime.setMenuItems({ engineID, items: inputMethods.map(inputMethod => ({
+    ime.setMenuItems({ engineID, items: [...inputMethods.map(inputMethod => ({
       id: `${IM_PREFIX}${inputMethod.name}`,
       label: inputMethod.displayName,
       checked: inputMethod.name === currentInputMethod,
-    })) })
+    })), ...menuActions.flatMap(menuAction => (menuAction.separator
+      ? []
+      : [{
+          id: `${SA_PREFIX}${menuAction.id}`,
+          label: menuAction.desc,
+          checked: menuAction.checked,
+        }, ...(menuAction.children ?? []).flatMap(action => (action.separator
+          ? []
+          : [{
+              id: `${SA_PREFIX}${action.id}`,
+              label: `　　${action.desc}`, // eslint-disable-line no-irregular-whitespace
+              checked: action.checked,
+            }]))]))] })
   }
 
   fcitxReady.then(() => {
@@ -121,6 +136,11 @@ export default defineBackground(() => {
       setMenuItems()
     })
 
+    globalThis.fcitx.setStatusAreaCallback(() => {
+      menuActions = globalThis.fcitx.getMenuActions()
+      setMenuItems()
+    })
+
     const { keyEvent } = globalThis.fcitx.enable()!
     ime.onKeyEvent.addListener((_, keyData, requestId) => {
       const handled = keyEvent({
@@ -170,6 +190,10 @@ export default defineBackground(() => {
     if (name.startsWith(IM_PREFIX)) {
       const im = name.slice(IM_PREFIX.length)
       globalThis.fcitx.setCurrentInputMethod(im)
+    }
+    else if (name.startsWith(SA_PREFIX)) {
+      const id = Number(name.slice(SA_PREFIX.length))
+      globalThis.fcitx.activateMenuAction(id)
     }
   })
 })
