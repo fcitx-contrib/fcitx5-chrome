@@ -12,10 +12,10 @@ export default defineConfig({
       'input',
     ],
     input_components: [{
-      name: 'Fcitx5',
+      name: '__MSG_imName__',
       type: 'ime',
       id: 'fcitx5',
-      description: 'Fcitx5 input method framework',
+      description: '__MSG_imDescription__',
       language: ['en-US'],
       layouts: ['us'],
     }],

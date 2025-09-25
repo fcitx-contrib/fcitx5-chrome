@@ -3,6 +3,7 @@ import { fcitxReady } from 'fcitx5-js'
 
 const IM_PREFIX = 'im:'
 const SA_PREFIX = 'sa:'
+const OPTIONS = 'options'
 
 export default defineBackground(() => {
   if (!browser.input) {
@@ -42,7 +43,10 @@ export default defineBackground(() => {
               id: `${SA_PREFIX}${action.id}`,
               label: `　　${action.desc}`, // eslint-disable-line no-irregular-whitespace
               checked: action.checked,
-            }]))]))] })
+            }]))])), {
+      id: OPTIONS,
+      label: browser.i18n.getMessage('settings'),
+    }] })
   }
 
   fcitxReady.then(() => {
@@ -165,8 +169,8 @@ export default defineBackground(() => {
         },
         preventDefault: () => {},
       })
-      if (!handled && keyData.ctrlKey && !keyData.altKey && !keyData.shiftKey && keyData.key === ' ') {
-        // Hack Ctrl+Space to avoid Unchecked runtime.lastError: [input.ime.keyEventHandled]: The engine is not active.
+      if (!handled && keyData.ctrlKey && !keyData.altKey && keyData.key === ' ') {
+        // Hack Ctrl+(Shift+)Space to avoid Unchecked runtime.lastError: [input.ime.keyEventHandled]: The engine is not active.
         return false
       }
       ime.keyEventHandled(requestId, handled)
@@ -195,6 +199,11 @@ export default defineBackground(() => {
     else if (name.startsWith(SA_PREFIX)) {
       const id = Number(name.slice(SA_PREFIX.length))
       globalThis.fcitx.activateMenuAction(id)
+    }
+    else if (name === OPTIONS) {
+      browser.tabs.create({
+        url: browser.runtime.getURL('/options.html'),
+      })
     }
   })
 })

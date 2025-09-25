@@ -4,5 +4,14 @@
   },
   "extDescription": {
     "message": "Fcitx5 输入框架 Chrome 版"
+  },
+  "imName": {
+    "message": "小企鹅"
+  },
+  "imDescription": {
+    "message": "小企鹅输入框架"
+  },
+  "settings": {
+    "message": "⚙️ 设置"
   }
 }

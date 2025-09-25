@@ -4,5 +4,14 @@
   },
   "extDescription": {
     "message": "Fcitx5 input method framework Chrome edition"
+  },
+  "imName": {
+    "message": "Fcitx5"
+  },
+  "imDescription": {
+    "message": "Fcitx5 input method framework"
+  },
+  "settings": {
+    "message": "⚙️ Settings"
   }
 }
