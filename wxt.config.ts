@@ -1,11 +1,13 @@
-import { defineConfig } from 'wxt'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
+import { defineConfig } from 'wxt'
 
 const wasmPath = 'node_modules/fcitx5-js/dist/'
 
 export default defineConfig({
   manifest: {
-    name: 'Fcitx5',
+    name: '__MSG_extName__',
+    default_locale: 'en',
+    description: '__MSG_extDescription__',
     permissions: [
       'input',
     ],
@@ -18,10 +20,14 @@ export default defineConfig({
       layouts: ['us'],
     }],
     content_security_policy: {
-      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
-    }
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';", // eslint-disable-line style/quotes
+    },
   },
   outDirTemplate: 'fcitx5-chrome',
+  modules: ['@wxt-dev/auto-icons'],
+  autoIcons: {
+    baseIconPath: 'assets/fcitx.svg',
+  },
   vite: () => ({
     plugins: [
       viteStaticCopy({
@@ -29,7 +35,7 @@ export default defineConfig({
           src: wasmPath + file,
           dest: '',
         })),
-      })
-    ]
-  })
+      }),
+    ],
+  }),
 })
