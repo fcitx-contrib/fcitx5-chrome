@@ -10,6 +10,7 @@ export default defineBackground(() => {
   }
   let engineID = ''
   let contextID = 0
+  let currentInputMethod = ''
   let inputMethods: { name: string, displayName: string }[] = []
   let menuActions: ReturnType<FCITX['getMenuActions']> = []
   const { ime } = browser.input
@@ -25,7 +26,6 @@ export default defineBackground(() => {
     if (!engineID) {
       return
     }
-    const currentInputMethod = globalThis.fcitx.currentInputMethod()
     ime.setMenuItems({ engineID, items: [...inputMethods.map(inputMethod => ({
       id: `${IM_PREFIX}${inputMethod.name}`,
       label: inputMethod.displayName,
@@ -133,12 +133,24 @@ export default defineBackground(() => {
 
     globalThis.fcitx.setInputMethodsCallback(() => {
       inputMethods = globalThis.fcitx.getInputMethods()
+      currentInputMethod = globalThis.fcitx.currentInputMethod()
       setMenuItems()
     })
 
     globalThis.fcitx.setStatusAreaCallback(() => {
       menuActions = globalThis.fcitx.getMenuActions()
       setMenuItems()
+    })
+
+    ime.onFocus.addListener((context) => {
+      contextID = context.contextID
+      globalThis.fcitx.Module.ccall('focus_in', 'void', ['bool'], [false])
+    })
+
+    ime.onBlur.addListener(() => {
+      // By then the old context is already blurred and disallow committing anything.
+      contextID = -1
+      globalThis.fcitx.Module.ccall('focus_out', 'void', [], [])
     })
 
     const { keyEvent } = globalThis.fcitx.enable()!
@@ -169,17 +181,6 @@ export default defineBackground(() => {
 
   ime.onDeactivated.addListener(() => {
     engineID = ''
-  })
-
-  ime.onFocus.addListener((context) => {
-    contextID = context.contextID
-    globalThis.fcitx.Module.ccall('focus_in', 'void', ['bool'], [false])
-  })
-
-  ime.onBlur.addListener(() => {
-    // By then the old context is already blurred and disallow committing anything.
-    contextID = -1
-    globalThis.fcitx.Module.ccall('focus_out', 'void', [], [])
   })
 
   ime.onCandidateClicked.addListener((_, candidateID) => {
