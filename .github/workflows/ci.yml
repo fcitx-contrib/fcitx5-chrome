@@ -13,13 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: 24.x
 
       - name: Install dependencies
         run: |
-          wget -P cache https://github.com/fcitx-contrib/fcitx5-js/releases/download/latest/fcitx5-js.tgz
+          curl -LO --output-dir cache https://github.com/fcitx-contrib/fcitx5-js/releases/download/latest/fcitx5-js.tgz
           npm i -g pnpm
           pnpm i
 
@@ -39,7 +39,7 @@ jobs:
 
       - name: Upload artifact
         if: ${{ github.ref != 'refs/heads/master' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: artifact-chrome
           path: |

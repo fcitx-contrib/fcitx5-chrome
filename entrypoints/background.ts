@@ -5,7 +5,7 @@ const IM_PREFIX = 'im:'
 const SA_PREFIX = 'sa:'
 const OPTIONS = 'options'
 
-export default defineBackground(() => {
+function main() {
   if (!browser.input) {
     return
   }
@@ -206,4 +206,9 @@ export default defineBackground(() => {
       })
     }
   })
+}
+
+export default defineBackground({
+  type: 'module',
+  main,
 })
